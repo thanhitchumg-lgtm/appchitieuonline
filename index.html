@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- Cấu hình App toàn màn hình trên iPhone -->
+    <!-- Cấu hình để biến thành App toàn màn hình trên iPhone -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Chi Tiêu">
@@ -55,11 +55,11 @@
             font-weight: 800;
             color: var(--danger);
         }
-        .form-card, .monthly-card, .expense-list, .backup-card {
+        .form-card, .backup-card {
             background: var(--card-bg);
             border-radius: 16px;
             padding: 16px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .input-group {
@@ -99,7 +99,6 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 4px;
         }
         button.add-btn:active {
             opacity: 0.8;
@@ -107,29 +106,14 @@
         .list-header {
             font-size: 18px;
             font-weight: 600;
-            margin: 8px 0 10px 0;
-        }
-        .monthly-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #E5E5EA;
-            font-size: 15px;
-        }
-        .monthly-item:last-child {
-            border-bottom: none;
-        }
-        .monthly-month {
-            font-weight: 600;
-        }
-        .monthly-amount {
-            font-weight: 700;
-            color: var(--danger);
+            margin-bottom: 10px;
         }
         .expense-list {
-            padding: 0;
+            background: var(--card-bg);
+            border-radius: 16px;
             overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 24px;
         }
         .expense-item {
             display: flex;
@@ -172,11 +156,10 @@
             padding: 6px 10px;
             font-size: 13px;
             font-weight: 600;
-            cursor: pointer;
         }
         .empty-text {
             text-align: center;
-            padding: 20px;
+            padding: 24px;
             color: var(--text-sub);
             font-size: 15px;
         }
@@ -201,10 +184,219 @@
             font-style: italic;
             color: var(--text-sub);
             font-size: 13px;
-            margin: 30px 0 20px 0;
+            margin: 20px 0 10px 0;
         }
     </style>
 </head>
 <body>
 
-    <h1>Qu
+    <h1>Quản Lý Chi Tiêu</h1>
+
+    <!-- Tổng chi tiêu -->
+    <div class="total-card">
+        <div class="total-label">Tổng chi tiêu toàn bộ</div>
+        <div class="total-amount" id="totalAmount">0 ₫</div>
+    </div>
+
+    <!-- Form thêm khoản chi -->
+    <div class="form-card">
+        <div class="input-group">
+            <label>Ngày / Tháng / Năm</label>
+            <div class="date-select-row">
+                <select id="selDay"></select>
+                <select id="selMonth"></select>
+                <select id="selYear"></select>
+            </div>
+        </div>
+        <div class="input-group">
+            <input type="text" id="expenseName" placeholder="Tên khoản chi (VD: Ăn trưa, Đổ xăng)">
+        </div>
+        <div class="input-group">
+            <input type="number" id="expenseAmount" placeholder="Số tiền (VD: 50000)" inputmode="numeric">
+        </div>
+        <div class="input-group">
+            <select id="expenseCategory">
+                <option value="🍜 Ăn uống">🍜 Ăn uống</option>
+                <option value="🛵 Di chuyển">🛵 Di chuyển</option>
+                <option value="🛍️ Mua sắm">🛍️ Mua sắm</option>
+                <option value="🧾 Hóa đơn">🧾 Hóa đơn</option>
+                <option value="🎮 Giải trí">🎮 Giải trí</option>
+                <option value="📦 Khác">📦 Khác</option>
+            </select>
+        </div>
+        <button class="add-btn" onclick="addExpense()">+ Thêm Khoản Chi</button>
+    </div>
+
+    <!-- Thống kê theo tháng -->
+    <div class="list-header">Thống kê theo tháng</div>
+    <div class="expense-list" id="monthlyList"></div>
+
+    <!-- Danh sách lịch sử -->
+    <div class="list-header">Lịch sử giao dịch</div>
+    <div class="expense-list" id="expenseList"></div>
+
+    <!-- Sao lưu & Khôi phục -->
+    <div class="list-header">Sao lưu & Khôi phục</div>
+    <div class="backup-card">
+        <div class="backup-grid">
+            <button class="btn-secondary" onclick="backupData()">⬇️ Sao lưu file</button>
+            <button class="btn-secondary" onclick="document.getElementById('restoreInput').click()">⬆️ Khôi phục</button>
+        </div>
+        <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreData(event)">
+    </div>
+
+    <!-- Bản quyền chân trang -->
+    <div class="footer-copyright">
+        © 2026 - Nguyễn Hữu Thành
+    </div>
+
+    <script>
+        // SỬ DỤNG LẠI KHÓA LƯU TRỮ CŨ ĐỂ KHÔNG BỊ MẤT DỮ LIỆU
+        let expenses = JSON.parse(localStorage.getItem('my_expenses_v1')) || [];
+
+        function initDates() {
+            const dSel = document.getElementById('selDay');
+            const mSel = document.getElementById('selMonth');
+            const ySel = document.getElementById('selYear');
+            const now = new Date();
+            
+            dSel.innerHTML = ''; mSel.innerHTML = ''; ySel.innerHTML = '';
+
+            for (let i = 1; i <= 31; i++) {
+                dSel.innerHTML += `<option value="${i}" ${i === now.getDate() ? 'selected' : ''}>${i}</option>`;
+            }
+            for (let i = 1; i <= 12; i++) {
+                mSel.innerHTML += `<option value="${i}" ${i === now.getMonth() + 1 ? 'selected' : ''}>Tháng ${i}</option>`;
+            }
+            for (let i = 2026; i <= 2050; i++) {
+                ySel.innerHTML += `<option value="${i}" ${i === now.getFullYear() ? 'selected' : ''}>${i}</option>`;
+            }
+        }
+
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+
+        function renderExpenses() {
+            const listEl = document.getElementById('expenseList');
+            const monthlyEl = document.getElementById('monthlyList');
+            const totalEl = document.getElementById('totalAmount');
+            
+            const total = expenses.reduce((sum, item) => sum + item.amount, 0);
+            totalEl.innerText = formatVND(total);
+
+            if (expenses.length === 0) {
+                listEl.innerHTML = '<div class="empty-text">Chưa có khoản chi tiêu nào</div>';
+                monthlyEl.innerHTML = '<div class="empty-text">Chưa có dữ liệu thống kê</div>';
+                return;
+            }
+
+            // Xử lý thống kê theo tháng
+            let monthlyStats = {};
+            expenses.forEach(item => {
+                let parts = item.date.split('/');
+                if (parts.length >= 3) {
+                    let monthYear = `${parts[1].padStart(2, '0')}/${parts[2]}`;
+                    monthlyStats[monthYear] = (monthlyStats[monthYear] || 0) + item.amount;
+                }
+            });
+
+            monthlyEl.innerHTML = Object.keys(monthlyStats).map(mKey => `
+                <div class="expense-item">
+                    <span class="item-name">Tháng ${mKey}</span>
+                    <span class="item-amount" style="color: var(--danger);">${formatVND(monthlyStats[mKey])}</span>
+                </div>
+            `).join('');
+
+            // Xử lý danh sách giao dịch
+            listEl.innerHTML = expenses.map((item, index) => `
+                <div class="expense-item">
+                    <div class="item-info">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-meta">${item.category} • ${item.date}</span>
+                    </div>
+                    <div class="item-right">
+                        <span class="item-amount">-${formatVND(item.amount)}</span>
+                        <button class="delete-btn" onclick="deleteExpense(${index})">Xóa</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addExpense() {
+            const nameInput = document.getElementById('expenseName');
+            const amountInput = document.getElementById('expenseAmount');
+            const categoryInput = document.getElementById('expenseCategory');
+            
+            const d = document.getElementById('selDay').value.padStart(2, '0');
+            const m = document.getElementById('selMonth').value.padStart(2, '0');
+            const y = document.getElementById('selYear').value;
+
+            const name = nameInput.value.trim();
+            const amount = parseFloat(amountInput.value);
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert('Vui lòng nhập tên khoản chi và số tiền hợp lệ!');
+                return;
+            }
+
+            const formattedDate = `${d}/${m}/${y}`;
+
+            expenses.unshift({
+                name: name,
+                amount: amount,
+                category: categoryInput.value,
+                date: formattedDate
+            });
+
+            localStorage.setItem('my_expenses_v1', JSON.stringify(expenses));
+            nameInput.value = '';
+            amountInput.value = '';
+            renderExpenses();
+        }
+
+        function deleteExpense(index) {
+            if(confirm("Xóa khoản chi tiêu này?")) {
+                expenses.splice(index, 1);
+                localStorage.setItem('my_expenses_v1', JSON.stringify(expenses));
+                renderExpenses();
+            }
+        }
+
+        function backupData() {
+            if (expenses.length === 0) return alert('Chưa có dữ liệu để sao lưu!');
+            const dataStr = JSON.stringify(expenses, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sao-luu-chi-tieu-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+
+        function restoreData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        expenses = imported;
+                        localStorage.setItem('my_expenses_v1', JSON.stringify(expenses));
+                        renderExpenses();
+                        alert('Khôi phục dữ liệu thành công!');
+                    }
+                } catch (err) {
+                    alert('File sao lưu không hợp lệ!');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Khởi tạo ngày tháng và render dữ liệu khi tải trang
+        initDates();
+        renderExpenses();
+    </script>
+</body>
+</html>
