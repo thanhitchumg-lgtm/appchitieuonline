@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Chi Tiêu Cloud">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2382/2382625.png">
+    
+    <title>Quản Lý Chi Tiêu Online</title>
+    <style>
+        :root {
+            --bg-color: #F2F2F7;
+            --card-bg: #FFFFFF;
+            --primary: #007AFF;
+            --danger: #FF3B30;
+            --text-main: #000000;
+            --text-sub: #8E8E93;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            user-select: none;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 20px 0 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sync-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: #E5E5EA;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+        .total-card, .form-card, .expense-list {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .total-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .total-label {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
+        .total-amount {
+            font-size: 34px;
+            font-weight: 800;
+            color: var(--danger);
+        }
+        .input-group {
+            margin-bottom: 12px;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #E5E5EA;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #FAFAFC;
+            outline: none;
+        }
+        button.add-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        button.add-btn:disabled {
+            opacity: 0.5;
+        }
+        .list-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 8px 0 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .refresh-link {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .expense-list {
+            padding: 0;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        .expense-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid #E5E5EA;
+        }
+        .expense-item:last-child {
+            border-bottom: none;
+        }
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .item-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .item-meta {
+            font-size: 13px;
+            color: var(--text-sub);
+        }
+        .item-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .item-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .delete-btn {
+            background: #FFE5E5;
+            color: var(--danger);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .empty-text {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-sub);
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>
+        <span>Chi Tiêu Cloud</span>
+        <span class="sync-status" id="syncStatus">Đang đồng bộ...</span>
+    </h1>
+
+    <div class="total-card">
+        <div class="total-label">Tổng chi tiêu</div>
+        <div class="total-amount" id="totalAmount">0 ₫</div>
+    </div>
+
+    <div class="form-card">
+        <div class="input-group">
+            <input type="text" id="expenseName" placeholder="Tên khoản chi (VD: Ăn trưa, Đổ xăng)">
+        </div>
+        <div class="input-group">
+            <input type="number" id="expenseAmount" placeholder="Số tiền (VD: 50000)" inputmode="numeric">
+        </div>
+        <div class="input-group">
+            <select id="expenseCategory">
+                <option value="🍜 Ăn uống">🍜 Ăn uống</option>
+                <option value="🛵 Di chuyển">🛵 Di chuyển</option>
+                <option value="🛍️ Mua sắm">🛍️ Mua sắm</option>
+                <option value="🧾 Hóa đơn">🧾 Hóa đơn</option>
+                <option value="🎮 Giải trí">🎮 Giải trí</option>
+                <option value="📦 Khác">📦 Khác</option>
+            </select>
+        </div>
+        <button class="add-btn" id="submitBtn" onclick="addExpense()">+ Thêm Khoản Chi</button>
+    </div>
+
+    <div class="list-header">
+        <span>Lịch sử giao dịch</span>
+        <span class="refresh-link" onclick="fetchData()">🔄 Làm mới</span>
+    </div>
+    <div class="expense-list" id="expenseList"></div>
+
+    <script>
+        // THAY LINK WEB APP CỦA BẠN VÀO ĐÂY:
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxFeHHKxvGGAVsV-38EwpKTS7Q02MSJTXxb4QNlkwBd3tqOW1_u-NK9wNl1pr3eNh0I/exec';
+        
+        let expenses = [];
+
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+
+        function setStatus(text, type = 'normal') {
+            const el = document.getElementById('syncStatus');
+            el.innerText = text;
+        }
+
+        // Tải dữ liệu từ Google Sheets lên App
+        async function fetchData() {
+            setStatus('Đang tải...');
+            try {
+                let response = await fetch(`${API_URL}?action=get`);
+                let data = await response.json();
+                expenses = data.reverse(); // Đảo ngược để hiện mới nhất lên đầu
+                renderExpenses();
+                setStatus('Đã đồng bộ Cloud');
+            } catch (err) {
+                setStatus('Lỗi kết nối');
+                console.error(err);
+            }
+        }
+
+        function renderExpenses() {
+            const listEl = document.getElementById('expenseList');
+            const totalEl = document.getElementById('totalAmount');
+            
+            const total = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
+            totalEl.innerText = formatVND(total);
+
+            if (expenses.length === 0) {
+                listEl.innerHTML = '<div class="empty-text">Chưa có khoản chi tiêu nào</div>';
+                return;
+            }
+
+            listEl.innerHTML = expenses.map(item => `
+                <div class="expense-item">
+                    <div class="item-info">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-meta">${item.category} • ${item.date}</span>
+                    </div>
+                    <div class="item-right">
+                        <span class="item-amount">-${formatVND(item.amount)}</span>
+                        <button class="delete-btn" onclick="deleteExpense('${item.id}')">Xóa</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Thêm khoản chi mới lên Google Sheets
+        async function addExpense() {
+            const nameInput = document.getElementById('expenseName');
+            const amountInput = document.getElementById('expenseAmount');
+            const categoryInput = document.getElementById('expenseCategory');
+            const btn = document.getElementById('submitBtn');
+
+            const name = nameInput.value.trim();
+            const amount = parseFloat(amountInput.value);
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert('Vui lòng nhập tên khoản chi và số tiền hợp lệ!');
+                return;
+            }
+
+            btn.disabled = true;
+            setStatus('Đang lưu...');
+
+            const newItem = {
+                action: 'add',
+                id: 'ID_' + Date.now(),
+                date: new Date().toLocaleDateString('vi-VN'),
+                name: name,
+                category: categoryInput.value,
+                amount: amount
+            };
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(newItem)
+                });
+                
+                nameInput.value = '';
+                amountInput.value = '';
+                await fetchData(); // Tải lại dữ liệu mới từ Sheets
+            } catch (err) {
+                alert('Lỗi khi thêm dữ liệu!');
+            }
+            btn.disabled = false;
+        }
+
+        // Xóa khoản chi trên Google Sheets
+        async function deleteExpense(id) {
+            if (!confirm('Bạn có chắc muốn xóa khoản chi này?')) return;
+            setStatus('Đang xóa...');
+
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'delete', id: id })
+                });
+                await fetchData();
+            } catch (err) {
+                alert('Lỗi khi xóa dữ liệu!');
+            }
+        }
+
+        // Tự động tải dữ liệu khi vừa mở app
+        fetchData();
+    </script>
+</body>
+</html>
