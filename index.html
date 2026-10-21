@@ -49,6 +49,7 @@
             font-size: 14px;
             color: var(--text-sub);
             margin-bottom: 6px;
+            font-weight: 600;
         }
         .total-amount {
             font-size: 34px;
@@ -163,6 +164,53 @@
             color: var(--text-sub);
             font-size: 15px;
         }
+        /* CSS cho Accordion Thống kê tháng */
+        .month-group {
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #FAFAFC;
+            cursor: pointer;
+            border-bottom: 1px solid transparent;
+        }
+        .month-header.active {
+            border-bottom-color: #E5E5EA;
+        }
+        .month-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .month-total {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toggle-icon {
+            font-size: 12px;
+            color: var(--text-sub);
+            transition: transform 0.2s;
+        }
+        .month-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+        .month-content {
+            display: none;
+        }
+        .month-content.show {
+            display: block;
+        }
+        /* Backup & Footer */
         .backup-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -192,9 +240,9 @@
 
     <h1>Quản Lý Chi Tiêu</h1>
 
-    <!-- Tổng chi tiêu -->
+    <!-- Tổng chi tiêu THÁNG HIỆN TẠI -->
     <div class="total-card">
-        <div class="total-label">Tổng chi tiêu toàn bộ</div>
+        <div class="total-label" id="topMonthLabel">Tổng chi tiêu tháng này</div>
         <div class="total-amount" id="totalAmount">0 ₫</div>
     </div>
 
@@ -227,16 +275,16 @@
         <button class="add-btn" onclick="addExpense()">+ Thêm Khoản Chi</button>
     </div>
 
-    <!-- Thống kê theo tháng -->
-    <div class="list-header">Thống kê theo tháng</div>
-    <div class="expense-list" id="monthlyList"></div>
+    <!-- Danh sách lịch sử RÚT GỌN (3 giao dịch gần nhất) -->
+    <div class="list-header">Giao dịch gần đây</div>
+    <div class="expense-list" id="recentList"></div>
 
-    <!-- Danh sách lịch sử -->
-    <div class="list-header">Lịch sử giao dịch</div>
-    <div class="expense-list" id="expenseList"></div>
+    <!-- Thống kê theo tháng XỔ XUỐNG -->
+    <div class="list-header">Chi tiết theo tháng</div>
+    <div id="monthlyAccordion"></div>
 
     <!-- Sao lưu & Khôi phục -->
-    <div class="list-header">Sao lưu & Khôi phục</div>
+    <div class="list-header" style="margin-top: 24px;">Sao lưu & Khôi phục</div>
     <div class="backup-card">
         <div class="backup-grid">
             <button class="btn-secondary" onclick="backupData()">⬇️ Sao lưu file</button>
@@ -251,7 +299,7 @@
     </div>
 
     <script>
-        // SỬ DỤNG LẠI KHÓA LƯU TRỮ CŨ ĐỂ KHÔNG BỊ MẤT DỮ LIỆU
+        // Sử dụng kho lưu trữ cũ để bảo toàn dữ liệu
         let expenses = JSON.parse(localStorage.getItem('my_expenses_v1')) || [];
 
         function initDates() {
@@ -278,38 +326,42 @@
         }
 
         function renderExpenses() {
-            const listEl = document.getElementById('expenseList');
-            const monthlyEl = document.getElementById('monthlyList');
+            const recentEl = document.getElementById('recentList');
+            const monthlyEl = document.getElementById('monthlyAccordion');
             const totalEl = document.getElementById('totalAmount');
-            
-            const total = expenses.reduce((sum, item) => sum + item.amount, 0);
-            totalEl.innerText = formatVND(total);
+            const topMonthLabel = document.getElementById('topMonthLabel');
 
+            // 1. Nhóm dữ liệu theo tháng và gán lại Index gốc để xóa cho đúng
+            let monthlyStats = {};
+            expenses.forEach((item, index) => {
+                let parts = item.date.split('/');
+                if (parts.length >= 3) {
+                    let mKey = `${parts[1].padStart(2, '0')}/${parts[2]}`; // Ví dụ: "10/2026"
+                    if (!monthlyStats[mKey]) {
+                        monthlyStats[mKey] = { total: 0, items: [] };
+                    }
+                    monthlyStats[mKey].total += item.amount;
+                    monthlyStats[mKey].items.push({ ...item, originalIndex: index });
+                }
+            });
+
+            // 2. Cập nhật thẻ Tổng chi tiêu tháng hiện tại (Thực tế của tháng này)
+            const now = new Date();
+            const currentMonthKey = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            const currentMonthTotal = monthlyStats[currentMonthKey] ? monthlyStats[currentMonthKey].total : 0;
+            
+            topMonthLabel.innerText = `Tổng chi tiêu Tháng ${currentMonthKey}`;
+            totalEl.innerText = formatVND(currentMonthTotal);
+
+            // 3. Render 3 giao dịch gần nhất
             if (expenses.length === 0) {
-                listEl.innerHTML = '<div class="empty-text">Chưa có khoản chi tiêu nào</div>';
+                recentEl.innerHTML = '<div class="empty-text">Chưa có khoản chi tiêu nào</div>';
                 monthlyEl.innerHTML = '<div class="empty-text">Chưa có dữ liệu thống kê</div>';
                 return;
             }
 
-            // Xử lý thống kê theo tháng
-            let monthlyStats = {};
-            expenses.forEach(item => {
-                let parts = item.date.split('/');
-                if (parts.length >= 3) {
-                    let monthYear = `${parts[1].padStart(2, '0')}/${parts[2]}`;
-                    monthlyStats[monthYear] = (monthlyStats[monthYear] || 0) + item.amount;
-                }
-            });
-
-            monthlyEl.innerHTML = Object.keys(monthlyStats).map(mKey => `
-                <div class="expense-item">
-                    <span class="item-name">Tháng ${mKey}</span>
-                    <span class="item-amount" style="color: var(--danger);">${formatVND(monthlyStats[mKey])}</span>
-                </div>
-            `).join('');
-
-            // Xử lý danh sách giao dịch
-            listEl.innerHTML = expenses.map((item, index) => `
+            let recent3 = expenses.slice(0, 3);
+            recentEl.innerHTML = recent3.map((item, localIndex) => `
                 <div class="expense-item">
                     <div class="item-info">
                         <span class="item-name">${item.name}</span>
@@ -317,10 +369,45 @@
                     </div>
                     <div class="item-right">
                         <span class="item-amount">-${formatVND(item.amount)}</span>
-                        <button class="delete-btn" onclick="deleteExpense(${index})">Xóa</button>
+                        <button class="delete-btn" onclick="deleteExpense(${localIndex})">Xóa</button>
                     </div>
                 </div>
             `).join('');
+
+            // 4. Render Accordion Thống kê theo tháng
+            monthlyEl.innerHTML = Object.keys(monthlyStats).map(mKey => `
+                <div class="month-group">
+                    <div class="month-header" onclick="toggleAccordion('${mKey}')" id="header-${mKey}">
+                        <div class="month-title">Tháng ${mKey}</div>
+                        <div class="month-total">
+                            ${formatVND(monthlyStats[mKey].total)}
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="month-content" id="content-${mKey}">
+                        ${monthlyStats[mKey].items.map(item => `
+                            <div class="expense-item">
+                                <div class="item-info">
+                                    <span class="item-name">${item.name}</span>
+                                    <span class="item-meta">${item.category} •${item.date}</span>
+                                </div>
+                                <div class="item-right">
+                                    <span class="item-amount">-${formatVND(item.amount)}</span>
+                                    <button class="delete-btn" onclick="deleteExpense(${item.originalIndex})">Xóa</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Hàm hiệu ứng đóng mở Accordion
+        function toggleAccordion(mKey) {
+            const content = document.getElementById(`content-${mKey}`);
+            const header = document.getElementById(`header-${mKey}`);
+            content.classList.toggle('show');
+            header.classList.toggle('active');
         }
 
         function addExpense() {
@@ -394,7 +481,6 @@
             reader.readAsText(file);
         }
 
-        // Khởi tạo ngày tháng và render dữ liệu khi tải trang
         initDates();
         renderExpenses();
     </script>
